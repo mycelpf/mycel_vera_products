@@ -9,6 +9,7 @@ Runs during: mycel-platform fabric db seed --module mycel_vera_products
 """
 import asyncio
 import os
+from pathlib import Path
 
 import asyncpg
 
@@ -135,6 +136,35 @@ async def seed_rbac():
     print(f"  RBAC seed complete for mycel_vera_products")
 
 
+async def seed_provisioning():
+    """Load TypeKey reference data from provisioning JSON layers."""
+    db_url = os.environ.get("DATABASE_URL")
+    if not db_url:
+        print("  ! DATABASE_URL not set — skipping provisioning seed")
+        return
+
+    # Resolve provisioning root relative to workspace
+    ws = os.environ.get("WORKSPACE_ROOT", "")
+    if not ws:
+        # Infer from script location: .../mycel_vera_products/mycel_vera_products_infra/db/seed/
+        ws = str(Path(__file__).parents[4])
+
+    prov_root = os.path.join(ws, "mycel_knowledge", "vera", "mycel_vera_provisioning")
+    if not os.path.isdir(prov_root):
+        print(f"  ! Provisioning root not found: {prov_root}")
+        return
+
+    from provision_loader import load_provisioning
+
+    layers = ["universal", "country/india", "lob/motor", "client/hegi"]
+    claims_db_url = os.environ.get("CLAIMS_DATABASE_URL")
+    print(f"  Loading provisioning data ({', '.join(layers)})...")
+    await load_provisioning(db_url, prov_root, layers=layers, claims_db_url=claims_db_url)
+
+
 if __name__ == "__main__":
-    print(f"\n=== RBAC Bootstrap: mycel_vera_products ===")
+    print(f"\n=== Bootstrap: mycel_vera_products ===")
+    print(f"--- Phase 1: RBAC ---")
     asyncio.run(seed_rbac())
+    print(f"--- Phase 2: Provisioning ---")
+    asyncio.run(seed_provisioning())

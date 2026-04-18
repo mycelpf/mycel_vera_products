@@ -4,7 +4,3 @@ image:
 
 config:
   LOG_LEVEL: debug
-
-artifacts:
-  web:
-    command: ["npx", "vite", "dev", "--host", "--port", "3002"]
